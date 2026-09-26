@@ -24,7 +24,7 @@ const testCookie = "cookie-abc"
 func startFake(t *testing.T, opts ...fakeiterm.Option) *fakeiterm.Server {
 	t.Helper()
 	opts = append([]fakeiterm.Option{fakeiterm.RequireCookie(testCookie)}, opts...)
-	srv, err := fakeiterm.Start(t.TempDir(), opts...)
+	srv, err := fakeiterm.Start(opts...)
 	require.NoError(t, err, "starting fake iTerm2")
 	t.Cleanup(func() { _ = srv.Close() })
 	return srv

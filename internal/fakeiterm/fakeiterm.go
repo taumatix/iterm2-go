@@ -58,6 +58,9 @@ type Server struct {
 	// SocketPath is the socket to point [iterm2.WithSocketPath] at.
 	SocketPath string
 
+	// dir holds the socket and is removed by Close.
+	dir string
+
 	listener net.Listener
 	http     *http.Server
 
@@ -91,14 +94,26 @@ func WithHandler(h Handler) Option {
 	return func(s *Server) { s.handler = h }
 }
 
-// Start brings up a fake iTerm2 on a unix socket inside dir.
+// Start brings up a fake iTerm2 on a unix socket. The caller must Close it,
+// which also removes the socket and its directory.
 //
-// The caller must Close it. dir should be a t.TempDir: macOS caps a unix socket
-// path at 104 bytes, which a deeply nested temp directory can exceed, so Start
-// reports that as an error rather than a confusing bind failure.
-func Start(dir string, opts ...Option) (*Server, error) {
+// It chooses the directory itself rather than taking one, because the path
+// budget is tight enough to be a trap: sockaddr_un.sun_path is 104 bytes on
+// Darwin and 108 on Linux, and t.TempDir() spends a lot of it — on a macOS
+// runner it expands to /var/folders/<32 chars>/T/<test name>/001, which put this
+// over the limit for the longer test names while Linux's short /tmp paths passed.
+// CI caught that on the first run; taking the choice away from the caller is
+// what stops it coming back.
+func Start(opts ...Option) (*Server, error) {
+	dir, err := os.MkdirTemp("", "fakeiterm")
+	if err != nil {
+		return nil, fmt.Errorf("fakeiterm: making a socket directory: %w", err)
+	}
+
 	s := &Server{
-		SocketPath: filepath.Join(dir, "socket"),
+		// A one-character name, because every byte here is part of that budget.
+		SocketPath: filepath.Join(dir, "s"),
+		dir:        dir,
 		connected:  make(chan struct{}, 16),
 		done:       make(chan struct{}),
 		handler:    echoHandler,
@@ -107,14 +122,16 @@ func Start(dir string, opts ...Option) (*Server, error) {
 		opt(s)
 	}
 
-	// sockaddr_un.sun_path is 104 bytes on Darwin, 108 on Linux; bind truncates
-	// or fails obscurely past that. Saying so beats debugging "invalid argument".
+	// Still asserted: TMPDIR is the caller's to set, and a long one would fail at
+	// bind with "invalid argument", which says nothing about why.
 	if len(s.SocketPath) > 100 {
-		return nil, fmt.Errorf("fakeiterm: socket path is %d bytes, too long for a unix socket: %s", len(s.SocketPath), s.SocketPath)
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("fakeiterm: socket path is %d bytes, too long for a unix socket (set TMPDIR to something shorter): %s", len(s.SocketPath), s.SocketPath)
 	}
 
 	ln, err := net.Listen("unix", s.SocketPath)
 	if err != nil {
+		_ = os.RemoveAll(dir)
 		return nil, fmt.Errorf("fakeiterm: listening on %s: %w", s.SocketPath, err)
 	}
 	s.listener = ln
@@ -219,7 +236,8 @@ func (s *Server) Close() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		err = s.http.Shutdown(ctx)
-		_ = os.Remove(s.SocketPath)
+		// Removes the socket along with the directory Start made for it.
+		_ = os.RemoveAll(s.dir)
 	})
 	return err
 }

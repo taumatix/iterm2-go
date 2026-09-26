@@ -1,0 +1,13 @@
+version: v2
+
+# proto/api.proto is a verbatim copy of iTerm2's own file. It is not ours to lint or to
+# keep breaking-change-free, so both checks are off: a lint failure here would be a
+# complaint about upstream's style, and a breaking-change failure would fire every time
+# iTerm2 adds a field — which is exactly the event upstream_test.go exists to
+# report, in a form that says what changed.
+modules:
+  - path: proto
+    lint:
+      use: []
+    breaking:
+      use: []

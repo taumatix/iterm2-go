@@ -1,0 +1,17 @@
+version: v2
+
+# api.proto carries no go_package option, and we do not add one: proto/api.proto must stay
+# byte-identical to upstream so upstream_test.go can verify its digest. The option is injected
+# here instead.
+managed:
+  enabled: true
+  override:
+    - file_option: go_package
+      path: api.proto
+      value: github.com/taumatix/iterm2-go/apipb
+
+plugins:
+  - local: protoc-gen-go
+    out: apipb
+    opt:
+      - paths=source_relative

@@ -57,6 +57,12 @@ Reachable today but unergonomic: profiles (`ListProfilesRequest`, `GetProfilePro
 `SetProfileProperty`), screen contents (`GetBufferRequest`), prompts, transactions,
 `RegisterToolRequest`, saved arrangements, the main menu, and server-originated RPC.
 
+Session notes joined that list with upstream `5ed491d` (2026-09-26): a `"session_note"` session
+property, `{ "text": string, "visible": boolean, "collapsed": boolean }`, read through
+`GetPropertyRequest` and written through `SetPropertyRequest`, which accepts a partial object.
+Nothing in the proto changed shape, so it is reachable via `Conn.Do` today; a typed
+`Session.Note()` / `Session.SetNote()` pair is the wrapper.
+
 Worth doing one at a time, each with its own tests, rather than as a sweep. `RegisterToolRequest`
 is the most valuable: it is what lets a Go program put its own panel in iTerm2's toolbelt.
 

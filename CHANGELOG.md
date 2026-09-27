@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `proto/api.proto` tracks iTerm2 `5ed491d` (2026-09-26). The change is comments only: it
+  documents the `"session_note"` property on `GetPropertyRequest` and `SetPropertyRequest`.
+- `google.golang.org/protobuf` v1.36.6 → v1.36.12, and `apipb/` regenerated with the matching
+  `protoc-gen-go`.
+
 ## [0.1.0] - 2026-09-26
 
 First release. A Go client for iTerm2's API, speaking its WebSocket protocol directly.

@@ -14,22 +14,25 @@ without CI noticing.
   kind: github-file
   repo: gnachman/iTerm2
   path: proto/api.proto
-  sha: a23c8c3afc1183dd4fd4e2d782da6943b03e29bd
-  sha256: 1a946faa4ab5ae67ef6260a035aa0a35705f3e66d44ed018b9ea517e4ab5f4e8
-  upstream_date: 2026-09-16
-  checked: 2026-09-26
+  sha: 5ed491d0cc7bba5a307f8ec70b6707f8c5e57956
+  sha256: e6c7fb443038d5e52b1721f9c151a4c53ba242986f8a391ecd2661349094f958
+  upstream_date: 2026-09-26
+  checked: 2026-09-27
   note: >-
     the protocol definition. Copied verbatim and verified byte-identical against
-    upstream at this commit on 2026-09-26 (upstream commit "Add Python API for tab
-    groups"), which was the newest commit touching the path. Carries protocol 1.19,
-    so tab groups and the 1.18 selected_tab_id / active_session_id fields are
-    present. Nothing in this repo may edit the file: buf.gen.yaml injects the
-    go_package option instead, so the copy stays diffable.
+    upstream at this commit on 2026-09-27 (upstream commit "Add Python API support
+    for Session Notes"), which was the newest commit touching the path. Carries
+    protocol 1.19, so tab groups and the 1.18 selected_tab_id / active_session_id
+    fields are present. The move from a23c8c3 changed comments only: a
+    "session_note" property is documented for Get/SetPropertyRequest, which carry
+    property names as strings, so no message or field changed. Nothing in this
+    repo may edit the file: buf.gen.yaml injects the go_package option instead, so
+    the copy stays diffable.
 
 - name: iterm2-app
   kind: macos-app
   minimum: "3.5.0"
-  checked: 2026-09-26
+  checked: 2026-09-27
   hold: >-
     not verified against a running iTerm2 by any automated run yet. The socket path,
     the handshake headers and the AppleScript cookie exchange were written from
@@ -41,8 +44,8 @@ without CI noticing.
 
 ## What is and is not verified
 
-**Verified on 2026-09-26.** `proto/api.proto` is byte-identical to upstream at the pinned commit:
-both sides hash to `1a946faa4ab5ae67ef6260a035aa0a35705f3e66d44ed018b9ea517e4ab5f4e8`. The pinned
+**Verified on 2026-09-27.** `proto/api.proto` is byte-identical to upstream at the pinned commit:
+both sides hash to `e6c7fb443038d5e52b1721f9c151a4c53ba242986f8a391ecd2661349094f958`. The pinned
 commit was the newest one touching `proto/api.proto` at that date.
 
 **Not verified: that this library talks to iTerm2 at all.** Every test drives

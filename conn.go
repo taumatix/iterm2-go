@@ -131,17 +131,13 @@ func Connect(ctx context.Context, opts ...Option) (*Conn, error) {
 		cfg.subscribeBuf = 1
 	}
 
-	creds, err := cfg.creds.Credentials(ctx)
-	if err != nil {
-		return nil, err
+	ws, err := dialWithCredentials(ctx, cfg)
+	retrier, canRetry := cfg.creds.(interface{ retryAfterUnauthorized() bool })
+	if errors.Is(err, ErrUnauthorized) && canRetry && retrier.retryAfterUnauthorized() {
+		// The default source's environment cookie was refused; its next answer
+		// is a fresh cookie over AppleScript. Once, as iTerm2's Python library does.
+		ws, err = dialWithCredentials(ctx, cfg)
 	}
-
-	network, address := "unix", cfg.socketPath
-	if cfg.forceTCP || !socketExists(cfg.socketPath) {
-		network, address = "tcp", cfg.tcpAddress
-	}
-
-	ws, err := dialWebSocket(ctx, network, address, creds, cfg.advisoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +153,50 @@ func Connect(ctx context.Context, opts ...Option) (*Conn, error) {
 	}
 	go c.readLoop()
 	return c, nil
+}
+
+// dialWithCredentials asks the source for credentials and completes one
+// handshake with them. It is one attempt: a cookie is spent by the attempt
+// whether or not the attempt succeeds.
+func dialWithCredentials(ctx context.Context, cfg config) (*websocket.Conn, error) {
+	creds, err := cfg.creds.Credentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	network, address := "unix", cfg.socketPath
+	if cfg.forceTCP || !socketExists(cfg.socketPath) {
+		network, address = "tcp", cfg.tcpAddress
+	}
+	return dialWebSocket(ctx, network, address, creds, cfg.advisoryName)
+}
+
+// Done is closed when the connection ends, whether through [Conn.Close] or
+// because iTerm2 went away. [Conn.Err] then says which.
+//
+// A program that only listens has no request in flight to fail, so without this
+// it cannot tell iTerm2 has quit. A connection cannot be revived — its cookie is
+// spent — so the response to Done is a fresh [Connect]:
+//
+//	for {
+//		conn, err := iterm2.Connect(ctx)
+//		if err != nil { /* back off and retry */ }
+//		// subscribe to what you need; notifications posted while
+//		// disconnected are gone, so resynchronise any state here
+//		<-conn.Done()
+//	}
+func (c *Conn) Done() <-chan struct{} { return c.readDone }
+
+// Err is nil while the connection is up. Once [Conn.Done] is closed it reports
+// why: [ErrClosed] after [Conn.Close], or the error that ended the connection
+// when iTerm2 dropped it.
+func (c *Conn) Err() error {
+	select {
+	case <-c.readDone:
+		return c.closeCause()
+	default:
+		return nil
+	}
 }
 
 // socketExists reports whether path is a socket we could connect to. A plain
@@ -357,6 +397,12 @@ func (c *Conn) shutdown(cause error) {
 		// having to recognise a transport-level close.
 		if c.closing {
 			cause = ErrClosed
+		} else {
+			// ErrClosed is documented as what every operation returns once iTerm2
+			// has gone, and until v0.2.0 a drop returned only the read error, so
+			// errors.Is(err, ErrClosed) missed the case it was written for. Wrap
+			// both: callers can test for the drop and still read why.
+			cause = fmt.Errorf("%w: %w", ErrClosed, cause)
 		}
 		c.cause = cause
 	}

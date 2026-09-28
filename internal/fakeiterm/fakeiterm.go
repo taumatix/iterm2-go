@@ -64,9 +64,15 @@ type Server struct {
 	listener net.Listener
 	http     *http.Server
 
-	// cookie, when set, must be presented by the client or the upgrade is
-	// refused with 401 — the same way iTerm2 refuses an unauthorised client.
-	cookie string
+	// cookies, when non-empty, is the jar a client must present one of or the
+	// upgrade is refused with 401 — the same way iTerm2 refuses an unauthorised
+	// client. Guarded by mu, because AddCookie and a single-use handshake both
+	// change it while the server runs.
+	cookies map[string]bool
+	// singleUse removes a cookie from the jar once a handshake presents it, as
+	// iTermWebSocketCookieJar consumeCookie does for every cookie it issues
+	// without an expiry.
+	singleUse bool
 
 	mu         sync.Mutex
 	handler    Handler
@@ -84,7 +90,47 @@ type Option func(*Server)
 // RequireCookie makes the server refuse any upgrade that does not present
 // cookie, answering 401 as iTerm2 does.
 func RequireCookie(cookie string) Option {
-	return func(s *Server) { s.cookie = cookie }
+	return func(s *Server) { s.addCookieLocked(cookie) }
+}
+
+// SingleUseCookies makes every cookie good for one handshake, which is how
+// iTerm2 treats the cookies it hands to scripts it launches and to an ordinary
+// AppleScript request (iTermWebSocketCookieJar randomStringForCookie). Without
+// it the fake accepts a cookie any number of times.
+func SingleUseCookies() Option {
+	return func(s *Server) { s.singleUse = true }
+}
+
+// AddCookie puts a fresh cookie in the jar, standing in for iTerm2 answering an
+// AppleScript cookie request while it runs.
+func (s *Server) AddCookie(cookie string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.addCookieLocked(cookie)
+}
+
+func (s *Server) addCookieLocked(cookie string) {
+	if s.cookies == nil {
+		s.cookies = make(map[string]bool)
+	}
+	s.cookies[cookie] = true
+}
+
+// consumeCookie reports whether the handshake may proceed, spending the cookie
+// if cookies are single use. A server with no jar accepts anyone.
+func (s *Server) consumeCookie(cookie string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.cookies) == 0 && !s.singleUse {
+		return true
+	}
+	if !s.cookies[cookie] {
+		return false
+	}
+	if s.singleUse {
+		delete(s.cookies, cookie)
+	}
+	return true
 }
 
 // WithHandler sets the request handler. The default echoes an empty response
@@ -256,7 +302,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	s.handshakes = append(s.handshakes, hs)
 	s.mu.Unlock()
 
-	if s.cookie != "" && hs.Cookie != s.cookie {
+	if !s.consumeCookie(hs.Cookie) {
 		// iTerm2 answers 401 for a missing or spent cookie, and the client turns
 		// that into ErrUnauthorized.
 		http.Error(w, "unauthorized", http.StatusUnauthorized)

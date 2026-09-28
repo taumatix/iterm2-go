@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Credentials authorise a connection to iTerm2's API.
@@ -86,19 +87,92 @@ func AppleScriptCredentials(advisoryName string) CredentialSource {
 
 // DefaultCredentials uses the environment when iTerm2 has provided credentials
 // there, and otherwise asks iTerm2 for a fresh cookie over AppleScript.
+//
+// The environment's cookie is used once per process. iTerm2 issues it single
+// use and forgets every cookie when it restarts, so presenting it a second time
+// can only be refused; after the first attempt this source asks over
+// AppleScript instead, which is what lets a program reconnect. And when the
+// environment's cookie is refused outright — inherited from a parent that
+// already spent it — [Connect] asks for a fresh one and tries once more. Both
+// match iTerm2's Python library, which deletes ITERM2_COOKIE after a refusal;
+// this one leaves the environment alone and remembers the spent value instead.
 func DefaultCredentials(advisoryName string) CredentialSource {
-	env := EnvCredentials()
-	script := AppleScriptCredentials(advisoryName)
-	return CredentialSourceFunc(func(ctx context.Context) (Credentials, error) {
-		creds, err := env.Credentials(ctx)
-		if err == nil {
-			return creds, nil
-		}
-		if !errors.Is(err, ErrNoCredentials) {
-			return Credentials{}, err
-		}
-		return script.Credentials(ctx)
-	})
+	return defaultCredentials(advisoryName, osascriptRunner{})
+}
+
+func defaultCredentials(advisoryName string, runner scriptRunner) CredentialSource {
+	return &defaultSource{
+		env:    EnvCredentials(),
+		script: &appleScriptSource{advisoryName: advisoryName, runner: runner},
+	}
+}
+
+// spentEnvCookie is the environment cookie this process has already presented.
+// Process-wide, because each [Connect] builds its own default source and the
+// cookie is spent for all of them.
+var spentEnvCookie spentCookie
+
+type spentCookie struct {
+	mu    sync.Mutex
+	value string
+}
+
+// claim reports whether cookie is still unspent, and marks it spent if so.
+func (s *spentCookie) claim(cookie string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cookie == s.value {
+		return false
+	}
+	s.value = cookie
+	return true
+}
+
+func (s *spentCookie) forget() {
+	s.mu.Lock()
+	s.value = ""
+	s.mu.Unlock()
+}
+
+type defaultSource struct {
+	env    CredentialSource
+	script CredentialSource
+
+	mu      sync.Mutex
+	fromEnv bool
+}
+
+func (d *defaultSource) Credentials(ctx context.Context) (Credentials, error) {
+	creds, err := d.env.Credentials(ctx)
+	switch {
+	case err == nil && creds.Cookie == "":
+		// A key with no cookie: nothing to spend, and what this did before.
+		d.setFromEnv(false)
+		return creds, nil
+	case err == nil && spentEnvCookie.claim(creds.Cookie):
+		d.setFromEnv(true)
+		return creds, nil
+	case err != nil && !errors.Is(err, ErrNoCredentials):
+		return Credentials{}, err
+	}
+	d.setFromEnv(false)
+	return d.script.Credentials(ctx)
+}
+
+// retryAfterUnauthorized reports whether a refused handshake is worth one more
+// attempt: only when the refused cookie came from the environment, since the
+// next call will ask iTerm2 for a fresh one. A refused fresh cookie means the
+// API is off or the user declined, and asking again would only prompt again.
+func (d *defaultSource) retryAfterUnauthorized() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.fromEnv
+}
+
+func (d *defaultSource) setFromEnv(v bool) {
+	d.mu.Lock()
+	d.fromEnv = v
+	d.mu.Unlock()
 }
 
 // scriptRunner executes an AppleScript and returns its result. It exists so the

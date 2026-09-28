@@ -31,16 +31,27 @@ Three guesses are waiting on that run, each marked where it is made:
 Until this is done, the README and `UPSTREAM.md` both say the connection layer is unverified, and
 they should keep saying it.
 
-## 2. Reconnection, because a cookie is single use
+## 2. A connection that heals itself
 
-`Connect` authorises with a cookie iTerm2 consumes during the handshake, so a `Conn` cannot
-reconnect itself: the credentials it was built with are spent. A long-running program that
-survives an iTerm2 restart therefore has to notice `ErrClosed`, build a fresh
-`CredentialSource`, and re-subscribe to everything — all of which it must write itself today.
+v0.2.0 made reconnecting possible by hand. `Conn.Done` reports the drop, `ErrClosed` now matches
+it, and a second `Connect` with the default credentials asks for a fresh cookie instead of
+presenting the spent `ITERM2_COOKIE`. The README carries the loop. Every program that wants to
+survive an iTerm2 restart still writes that loop itself, and re-subscribes to everything itself.
 
-A `Reconnect` or a self-healing wrapper needs a decision about subscriptions: re-subscribing
-silently would hide a gap in the notification stream, and not re-subscribing makes the wrapper
-useless. Probably: re-subscribe, and report the gap on the channel.
+A wrapper that does it needs a decision about subscriptions. Re-subscribing silently would hide a
+gap in the notification stream, and not re-subscribing makes the wrapper useless. Probably:
+re-subscribe, and report the gap as a value the caller cannot miss, such as a separate channel of
+reconnect events, because a notification channel has no slot for "you missed some". Test it
+against the fake with `SingleUseCookies`, dropping the connection mid-stream.
+
+## 2a. Reconnecting has only been tested against the fake
+
+The cookie behaviour v0.2.0 relies on is read from iTerm2's source at `5ed491d`
+(`iTermWebSocketCookieJar`, `iTermAPIScriptLauncher`), and the fake reproduces it. No real iTerm2
+has been restarted under a connected `Conn`. Two things need a real one. Does the socket's read
+error surface promptly when iTerm2 quits, or only at the next write? And does AppleScript cookie
+minting succeed in a process iTerm2 launched, which may not hold Apple Events permission of its
+own? Fold this into entry 1's live run.
 
 ## 3. Expose the split tree
 
@@ -74,6 +85,10 @@ messages, fields and enum values would turn each protocol bump into a roadmap en
 investigation.
 
 ## Done
+
+- **v0.2.0**: the first half of reconnection. `Conn.Done`/`Conn.Err`; `DefaultCredentials` spends
+  the environment's cookie once and then asks over AppleScript; a refused environment cookie gets
+  one fresh retry; `ErrClosed` now matches a drop from iTerm2's side, as it was documented to.
 
 - **v0.1.0** — transport (unix socket and the legacy TCP fallback, handshake, cookie exchange over
   AppleScript), `Conn.Do` for the whole protocol, the session hierarchy, sending text, creating

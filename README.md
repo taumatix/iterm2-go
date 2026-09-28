@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.1.0
+go get github.com/taumatix/iterm2-go@v0.2.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -84,6 +84,31 @@ Notifications are dropped rather than blocking when a consumer falls behind — 
 delivers them, so a blocked reader would stall every request on the connection.
 `sub.Dropped()` counts what was lost, and `WithSubscriptionBuffer` sets how much slack there is.
 
+### Staying connected
+
+A `Conn` cannot come back once iTerm2 quits or restarts: the cookie that authorised it was spent
+on the handshake, and iTerm2 forgets every cookie when it restarts. `conn.Done()` closes when the
+connection ends, and `conn.Err()` then says why. The answer is a fresh `Connect`:
+
+```go
+for ctx.Err() == nil {
+	conn, err := iterm2.Connect(ctx)
+	if err != nil {
+		time.Sleep(time.Second) // iTerm2 not back yet
+		continue
+	}
+	sub, err := conn.SubscribeNewSessions(ctx)
+	// ... resynchronise your state: nothing posted while you were away is replayed
+	<-conn.Done()
+	log.Println("iTerm2 went away:", conn.Err())
+}
+```
+
+With the default credentials that works in a process iTerm2 launched as well as in one it did
+not. The `ITERM2_COOKIE` iTerm2 handed the process is used for the first connection only, and
+later ones ask iTerm2 for a fresh cookie over AppleScript. That second path needs the process to
+be allowed to send Apple Events to iTerm2, so macOS may ask the user once.
+
 ### Anything else in the API
 
 The hand-written surface covers the session hierarchy, sending text, creating tabs and splits,
@@ -110,7 +135,7 @@ without waiting for a typed wrapper here.
 | Error | Means |
 |---|---|
 | `ErrUnauthorized` | iTerm2 refused the handshake: the API is off, or the cookie was already spent. Cookies are single use. |
-| `ErrClosed` | The connection is gone, whether through `Close` or because iTerm2 quit. |
+| `ErrClosed` | The connection is gone, whether through `Close` or because iTerm2 quit. After a drop the error wraps `ErrClosed` and carries the cause, so `errors.Is(err, ErrClosed)` holds either way. |
 | `*APIError` | iTerm2 could not parse the request, or answered with something this package cannot read. |
 | `*StatusError` | A well-formed request iTerm2 declined. `Status` carries `api.proto`'s own spelling, so it can be looked up there. |
 

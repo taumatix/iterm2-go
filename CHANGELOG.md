@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-28
+
+### Fixed
+
+- **A second `Connect` in a process iTerm2 launched could never succeed.** `DefaultCredentials`
+  returned `ITERM2_COOKIE` on every call. iTerm2 issues that cookie single use
+  (`iTermWebSocketCookieJar consumeCookie`, checked at `5ed491d`) and forgets every cookie when it
+  restarts, so reconnecting presented a spent cookie and got `ErrUnauthorized` every time, without
+  ever trying AppleScript. The environment's cookie is now used once per process, and later
+  attempts ask iTerm2 for a fresh cookie. A cookie refused on the first attempt (inherited from a
+  parent that had already spent it) gets one retry with a fresh cookie, as iTerm2's Python library
+  does. A refused *fresh* cookie is not retried, because that would only prompt the user again.
+- **`ErrClosed` did not match when iTerm2 quit.** It is documented as what every operation returns
+  once the connection is gone, whether through `Close` or because iTerm2 quit. After a drop,
+  operations returned only the read error, so `errors.Is(err, ErrClosed)` was false in exactly the
+  case it was written for. The error now wraps `ErrClosed` together with the cause.
+
+### Added
+
+- `Conn.Done()`, closed when the connection ends, and `Conn.Err()`, which says why. A program that
+  only listens has no request in flight to fail, so before this it could not notice iTerm2 had
+  gone. The README has the reconnect loop.
+
 ### Changed
 
 - `proto/api.proto` tracks iTerm2 `5ed491d` (2026-09-26). The change is comments only: it
@@ -53,5 +76,6 @@ First release. A Go client for iTerm2's API, speaking its WebSocket protocol dir
   `ROADMAP.md` entry 2.
 - The split tree's shape is not exposed, only the flattened pane order. See `ROADMAP.md` entry 3.
 
-[Unreleased]: https://github.com/taumatix/iterm2-go/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/taumatix/iterm2-go/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/taumatix/iterm2-go/releases/tag/v0.2.0
 [0.1.0]: https://github.com/taumatix/iterm2-go/releases/tag/v0.1.0

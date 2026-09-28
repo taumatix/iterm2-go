@@ -130,6 +130,7 @@ func TestDefaultCredentialsPrefersTheEnvironment(t *testing.T) {
 	// AppleScript would raise a permission prompt for no reason.
 	t.Setenv("ITERM2_COOKIE", "env-cookie")
 	t.Setenv("ITERM2_KEY", "env-key")
+	forgetSpentEnvCookie(t)
 
 	creds, err := DefaultCredentials("x").Credentials(context.Background())
 	require.NoError(t, err)

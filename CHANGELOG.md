@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
+### Added
+
+- **`ConnectPersistent`, a connection that survives iTerm2 restarting.** iTerm2 restarts on every
+  update, and a `Conn` cannot come back from that. `Persistent` dials again when the connection
+  ends, waiting one second and doubling to thirty (`WithReconnectBackoff`). It uses fresh
+  credentials each time, and re-makes every subscription on the new connection before announcing
+  it.
+- `Persistent.Subscribe`, `SubscribeNewSessions` and `SubscribeTerminatedSessions` return a
+  `DurableSubscription`, whose channel stays open across reconnects. It closes on `Unsubscribe`,
+  on `Close`, or when iTerm2 refuses the subscription on a new connection, with `Err()` saying
+  why.
+- `Persistent.Reconnects()` reports each reconnect as a `Reconnect` with a running `Count`, the
+  `Cause` and the time, sent once the subscriptions are back. Notifications posted while iTerm2
+  was away are lost; this is the signal to resynchronise. The channel keeps only the latest, so a
+  slow reader sees the count jump rather than blocking the reconnect.
+- `ErrReconnecting`, returned by `Persistent.Conn` and `Persistent.Do` while iTerm2 is away. It
+  wraps `ErrClosed`.
+- `WithReconnectBackoff`, read by `ConnectPersistent` only.
+
+### Known limitation
+
+Tested against the fake over a real unix socket, including the single-use cookie path, not against
+a real iTerm2 restarting. That is ROADMAP entry 2a.
+
 ## [0.2.0] - 2026-09-28
 
 ### Fixed
@@ -76,6 +102,7 @@ First release. A Go client for iTerm2's API, speaking its WebSocket protocol dir
   `ROADMAP.md` entry 2.
 - The split tree's shape is not exposed, only the flattened pane order. See `ROADMAP.md` entry 3.
 
-[Unreleased]: https://github.com/taumatix/iterm2-go/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/taumatix/iterm2-go/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/taumatix/iterm2-go/releases/tag/v0.3.0
 [0.2.0]: https://github.com/taumatix/iterm2-go/releases/tag/v0.2.0
 [0.1.0]: https://github.com/taumatix/iterm2-go/releases/tag/v0.1.0

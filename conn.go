@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/coder/websocket"
 	"google.golang.org/protobuf/proto"
@@ -54,6 +55,9 @@ type config struct {
 	creds        CredentialSource
 	advisoryName string
 	subscribeBuf int
+
+	// reconnectMin and reconnectMax are read by ConnectPersistent only.
+	reconnectMin, reconnectMax time.Duration
 }
 
 // Option configures [Connect].

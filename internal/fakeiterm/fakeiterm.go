@@ -260,6 +260,13 @@ func (s *Server) SendRaw(ctx context.Context, typ websocket.MessageType, payload
 	return nil
 }
 
+// ConnectionCount reports how many clients are connected now.
+func (s *Server) ConnectionCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.conns)
+}
+
 // CloseConnections drops every client connection without a close frame,
 // simulating iTerm2 quitting.
 func (s *Server) CloseConnections() {

@@ -327,6 +327,10 @@ func (c *Conn) SubscribeFocusChanges(ctx context.Context) (*Subscription, error)
 // identifier names the session, tab or window to watch and is ignored for
 // [ScopeApp]. name is the variable, such as "jobName" or "user.myVariable".
 func (c *Conn) SubscribeVariableChanges(ctx context.Context, scope VariableScope, identifier, name string) (*Subscription, error) {
+	return c.Subscribe(ctx, variableChangesRequest(scope, identifier, name))
+}
+
+func variableChangesRequest(scope VariableScope, identifier, name string) *apipb.NotificationRequest {
 	monitor := &apipb.VariableMonitorRequest{
 		Name:  proto.String(name),
 		Scope: apipb.VariableScope(scope).Enum(),
@@ -334,10 +338,10 @@ func (c *Conn) SubscribeVariableChanges(ctx context.Context, scope VariableScope
 	if identifier != "" {
 		monitor.Identifier = proto.String(identifier)
 	}
-	return c.Subscribe(ctx, &apipb.NotificationRequest{
+	return &apipb.NotificationRequest{
 		NotificationType: apipb.NotificationType_NOTIFY_ON_VARIABLE_CHANGE.Enum(),
 		Arguments: &apipb.NotificationRequest_VariableMonitorRequest{
 			VariableMonitorRequest: monitor,
 		},
-	})
+	}
 }

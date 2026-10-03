@@ -344,6 +344,21 @@ func (p *Persistent) SubscribeTerminatedSessions(ctx context.Context) (*DurableS
 	return p.Subscribe(ctx, &apipb.NotificationRequest{NotificationType: apipb.NotificationType_NOTIFY_ON_TERMINATE_SESSION.Enum()})
 }
 
+// SubscribeLayoutChanges is [Conn.SubscribeLayoutChanges] on a Persistent.
+func (p *Persistent) SubscribeLayoutChanges(ctx context.Context) (*DurableSubscription, error) {
+	return p.Subscribe(ctx, &apipb.NotificationRequest{NotificationType: apipb.NotificationType_NOTIFY_ON_LAYOUT_CHANGE.Enum()})
+}
+
+// SubscribeFocusChanges is [Conn.SubscribeFocusChanges] on a Persistent.
+func (p *Persistent) SubscribeFocusChanges(ctx context.Context) (*DurableSubscription, error) {
+	return p.Subscribe(ctx, &apipb.NotificationRequest{NotificationType: apipb.NotificationType_NOTIFY_ON_FOCUS_CHANGE.Enum()})
+}
+
+// SubscribeVariableChanges is [Conn.SubscribeVariableChanges] on a Persistent.
+func (p *Persistent) SubscribeVariableChanges(ctx context.Context, scope VariableScope, identifier, name string) (*DurableSubscription, error) {
+	return p.Subscribe(ctx, variableChangesRequest(scope, identifier, name))
+}
+
 // resubscribeTimeout bounds re-making one subscription on a new connection.
 const resubscribeTimeout = 10 * time.Second
 

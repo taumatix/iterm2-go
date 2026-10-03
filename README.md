@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.3.0
+go get github.com/taumatix/iterm2-go@v0.4.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -112,17 +112,19 @@ for {
 	case r := <-p.Reconnects():
 		// Anything iTerm2 posted while it was away is lost. Resynchronise here:
 		// subscriptions are already back, so nothing after this is missed.
-		conn, err := p.Conn()
-		if err == nil {
-			_, _ = conn.ListSessions(ctx)
-		}
+		_, _ = p.ListSessions(ctx)
 		log.Printf("reconnected (%d so far): %v", r.Count, r.Cause)
 	}
 }
 ```
 
-While iTerm2 is away, `p.Conn()` and `p.Do` return `ErrReconnecting`, which also matches
-`ErrClosed`. A per-session subscription whose session did not survive the restart is closed with
+A `Persistent` has every typed method a `Conn` has (`ListSessions`, `CreateTab`, `SendText`,
+`SplitPane`, `Activate`, `Close*`, the variables, and each `Subscribe*` helper returning a
+`DurableSubscription`), each made on whichever connection is current. A `Session`, `Tab` or
+`Window` it lists acts through the `Persistent` too, so one you held across a restart still works.
+Both satisfy `iterm2.Client`, so code written against that takes either.
+
+While iTerm2 is away, every call returns `ErrReconnecting`, which also matches `ErrClosed`. A per-session subscription whose session did not survive the restart is closed with
 `sub.Err()` saying why.
 
 If you would rather write the loop yourself, `conn.Done()` closes when a `Conn` ends and

@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-04
+
+### Added
+
+- **`Persistent` has the typed surface `Conn` has.** `ListSessions`, `CreateTab`, `SendText`,
+  `SplitPane`, `Activate`, `CloseSessions`/`CloseTabs`/`CloseWindows`, `GetVariables`,
+  `GetStringVariable`, `SetVariables` and `SetStringVariable` each run on whichever connection is
+  current, and return `ErrReconnecting` while iTerm2 is away. Before, a program had to go through
+  `p.Conn()` on every call, and one that kept the `*Conn` it got talked to a dead connection after
+  the first restart.
+- A `Session`, `Tab` or `Window` listed through a `Persistent` acts through it, so one held across
+  a restart still works.
+- `Persistent.SubscribeLayoutChanges`, `SubscribeFocusChanges` and `SubscribeVariableChanges`,
+  returning `DurableSubscription`s.
+- `Client`, the interface `*Conn` and `*Persistent` both satisfy.
+
 ## [0.3.0] - 2026-10-04
 
 ### Added

@@ -12,7 +12,7 @@ import (
 )
 
 // ListSessions returns a snapshot of every window, tab and session.
-func (c *Conn) ListSessions(ctx context.Context) (*Hierarchy, error) {
+func (c api) ListSessions(ctx context.Context) (*Hierarchy, error) {
 	resp, err := c.Do(ctx, &apipb.ClientOriginatedMessage{
 		Submessage: &apipb.ClientOriginatedMessage_ListSessionsRequest{
 			ListSessionsRequest: &apipb.ListSessionsRequest{},
@@ -74,7 +74,7 @@ type NewTab struct {
 }
 
 // CreateTab opens a new tab, or a new window when opts.WindowID is empty.
-func (c *Conn) CreateTab(ctx context.Context, opts CreateTabOptions) (*NewTab, error) {
+func (c api) CreateTab(ctx context.Context, opts CreateTabOptions) (*NewTab, error) {
 	if opts.TabIndex != nil && opts.WindowID == "" {
 		// api.proto: "Valid to set only if window_id is set." iTerm2 would
 		// answer INVALID_TAB_INDEX, having already made the tab; refusing here
@@ -118,7 +118,7 @@ func (c *Conn) CreateTab(ctx context.Context, opts CreateTabOptions) (*NewTab, e
 //
 // The session may be [SessionAll] or [SessionActive]. suppressBroadcast keeps
 // the text out of other sessions when the user has broadcasting switched on.
-func (c *Conn) SendText(ctx context.Context, sessionID, text string, suppressBroadcast bool) error {
+func (c api) SendText(ctx context.Context, sessionID, text string, suppressBroadcast bool) error {
 	if sessionID == "" {
 		return &APIError{Message: "SendText: no session"}
 	}
@@ -174,7 +174,7 @@ type SplitPaneOptions struct {
 // More than one id comes back when sessionID is [SessionAll]. api.proto warns
 // that a tmux integration session reports none, because the split happens only
 // if and when the tmux server acts on it.
-func (c *Conn) SplitPane(ctx context.Context, sessionID string, opts SplitPaneOptions) ([]string, error) {
+func (c api) SplitPane(ctx context.Context, sessionID string, opts SplitPaneOptions) ([]string, error) {
 	if sessionID == "" {
 		return nil, &APIError{Message: "SplitPane: no session"}
 	}
@@ -229,7 +229,7 @@ type ActivateOptions struct {
 }
 
 // Activate brings iTerm2 to the front without selecting anything in particular.
-func (c *Conn) Activate(ctx context.Context, opts ActivateOptions) error {
+func (c api) Activate(ctx context.Context, opts ActivateOptions) error {
 	return c.activate(ctx, &apipb.ActivateRequest{}, opts)
 }
 
@@ -258,7 +258,7 @@ func (w *Window) Activate(ctx context.Context, opts ActivateOptions) error {
 // activate takes a request rather than just the identifier because the oneof
 // wrapper interface protoc-gen-go emits is unexported, so it cannot be named
 // from outside apipb.
-func (c *Conn) activate(ctx context.Context, req *apipb.ActivateRequest, opts ActivateOptions) error {
+func (c api) activate(ctx context.Context, req *apipb.ActivateRequest, opts ActivateOptions) error {
 	if opts.OrderWindowFront {
 		req.OrderWindowFront = proto.Bool(true)
 	}
@@ -292,7 +292,7 @@ func (c *Conn) activate(ctx context.Context, req *apipb.ActivateRequest, opts Ac
 // iTerm2 answers with one status per target, so closing several can partly
 // succeed. The returned error joins one [*StatusError] per target that failed,
 // naming it, and is nil only when every one closed.
-func (c *Conn) CloseSessions(ctx context.Context, force bool, ids ...string) error {
+func (c api) CloseSessions(ctx context.Context, force bool, ids ...string) error {
 	return c.close(ctx, &apipb.CloseRequest{
 		Target: &apipb.CloseRequest_Sessions{
 			Sessions: &apipb.CloseRequest_CloseSessions{SessionIds: ids},
@@ -303,7 +303,7 @@ func (c *Conn) CloseSessions(ctx context.Context, force bool, ids ...string) err
 
 // CloseTabs closes tabs by id. See [Conn.CloseSessions] for force and the
 // per-target statuses.
-func (c *Conn) CloseTabs(ctx context.Context, force bool, ids ...string) error {
+func (c api) CloseTabs(ctx context.Context, force bool, ids ...string) error {
 	return c.close(ctx, &apipb.CloseRequest{
 		Target: &apipb.CloseRequest_Tabs{
 			Tabs: &apipb.CloseRequest_CloseTabs{TabIds: ids},
@@ -314,7 +314,7 @@ func (c *Conn) CloseTabs(ctx context.Context, force bool, ids ...string) error {
 
 // CloseWindows closes windows by id. See [Conn.CloseSessions] for force and the
 // per-target statuses.
-func (c *Conn) CloseWindows(ctx context.Context, force bool, ids ...string) error {
+func (c api) CloseWindows(ctx context.Context, force bool, ids ...string) error {
 	return c.close(ctx, &apipb.CloseRequest{
 		Target: &apipb.CloseRequest_Windows{
 			Windows: &apipb.CloseRequest_CloseWindows{WindowIds: ids},
@@ -338,7 +338,7 @@ func (w *Window) Close(ctx context.Context, force bool) error {
 	return w.conn.CloseWindows(ctx, force, w.ID)
 }
 
-func (c *Conn) close(ctx context.Context, req *apipb.CloseRequest, op string, ids []string) error {
+func (c api) close(ctx context.Context, req *apipb.CloseRequest, op string, ids []string) error {
 	if len(ids) == 0 {
 		return &APIError{Message: op + ": nothing to close"}
 	}

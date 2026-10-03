@@ -25,7 +25,7 @@ const AllVariables = "*"
 //
 // iTerm2 refuses to read more than one variable at once from [SessionAll] and
 // answers MULTI_GET_DISALLOWED.
-func (c *Conn) GetVariables(ctx context.Context, scope VariableScope, identifier string, names ...string) (map[string]json.RawMessage, error) {
+func (c api) GetVariables(ctx context.Context, scope VariableScope, identifier string, names ...string) (map[string]json.RawMessage, error) {
 	if len(names) == 0 {
 		return map[string]json.RawMessage{}, nil
 	}
@@ -71,7 +71,7 @@ func (c *Conn) GetVariables(ctx context.Context, scope VariableScope, identifier
 // It returns ok false when the variable is unset. A variable holding something
 // other than a string — a number, or the object [AllVariables] returns — is an
 // error, because silently rendering it would hide the mismatch.
-func (c *Conn) GetStringVariable(ctx context.Context, scope VariableScope, identifier, name string) (value string, ok bool, err error) {
+func (c api) GetStringVariable(ctx context.Context, scope VariableScope, identifier, name string) (value string, ok bool, err error) {
 	vars, err := c.GetVariables(ctx, scope, identifier, name)
 	if err != nil {
 		return "", false, err
@@ -91,7 +91,7 @@ func (c *Conn) GetStringVariable(ctx context.Context, scope VariableScope, ident
 // Values must be JSON, so a string needs its quotes. iTerm2 rejects any name
 // not beginning with "user." and answers INVALID_NAME, which arrives as a
 // [*StatusError]: the built-in variables are iTerm2's to write, not a script's.
-func (c *Conn) SetVariables(ctx context.Context, scope VariableScope, identifier string, values map[string]string) error {
+func (c api) SetVariables(ctx context.Context, scope VariableScope, identifier string, values map[string]string) error {
 	if len(values) == 0 {
 		return nil
 	}
@@ -118,7 +118,7 @@ func (c *Conn) SetVariables(ctx context.Context, scope VariableScope, identifier
 // SetStringVariable writes one string variable, doing the JSON quoting.
 //
 // The name must begin with "user." — see [Conn.SetVariables].
-func (c *Conn) SetStringVariable(ctx context.Context, scope VariableScope, identifier, name, value string) error {
+func (c api) SetStringVariable(ctx context.Context, scope VariableScope, identifier, name, value string) error {
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("iterm2: encoding variable %q: %w", name, err)

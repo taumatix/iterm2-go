@@ -79,7 +79,7 @@ type Hierarchy struct {
 
 // Window is one iTerm2 window.
 type Window struct {
-	conn *Conn
+	conn api
 
 	ID     string
 	Number int32
@@ -94,7 +94,7 @@ type Window struct {
 
 // Tab is one tab within a window.
 type Tab struct {
-	conn *Conn
+	conn api
 
 	ID string
 
@@ -145,7 +145,7 @@ type TabGroup struct {
 
 // Session is one pane.
 type Session struct {
-	conn *Conn
+	conn api
 
 	ID    string
 	Title string
@@ -233,7 +233,7 @@ func (t *Tab) ActiveSession() *Session {
 //
 // Every field is copied rather than referenced, so the result does not alias the
 // response and cannot change under the caller.
-func newHierarchy(c *Conn, resp *apipb.ListSessionsResponse) *Hierarchy {
+func newHierarchy(c api, resp *apipb.ListSessionsResponse) *Hierarchy {
 	h := &Hierarchy{}
 	for _, pw := range resp.GetWindows() {
 		w := &Window{
@@ -283,7 +283,7 @@ func newHierarchy(c *Conn, resp *apipb.ListSessionsResponse) *Hierarchy {
 // A link with neither child set is skipped rather than treated as an error: it
 // would mean a future iTerm2 added a third kind of child, and dropping one pane
 // beats failing the whole call.
-func flattenSplitTree(c *Conn, node *apipb.SplitTreeNode, out []*Session) []*Session {
+func flattenSplitTree(c api, node *apipb.SplitTreeNode, out []*Session) []*Session {
 	if node == nil {
 		return out
 	}
@@ -298,7 +298,7 @@ func flattenSplitTree(c *Conn, node *apipb.SplitTreeNode, out []*Session) []*Ses
 	return out
 }
 
-func newSession(c *Conn, s *apipb.SessionSummary, buried bool) *Session {
+func newSession(c api, s *apipb.SessionSummary, buried bool) *Session {
 	return &Session{
 		conn:  c,
 		ID:    s.GetUniqueIdentifier(),

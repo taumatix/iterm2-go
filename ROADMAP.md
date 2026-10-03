@@ -31,18 +31,13 @@ Three guesses are waiting on that run, each marked where it is made:
 Until this is done, the README and `UPSTREAM.md` both say the connection layer is unverified, and
 they should keep saying it.
 
-## 2. `Persistent` has only the request surface, not the typed one
+## 2. A `Session` keeps a session id that a restart may have changed
 
-v0.3.0's `Persistent` reconnects and keeps subscriptions alive, but its typed surface is two
-subscription helpers, `Do` and `Conn()`. Everything else (`ListSessions`, `CreateTab`,
-`SendText`, variables, the remaining `Subscribe*` helpers) goes through `p.Conn()` on every call,
-which returns `ErrReconnecting` while away. That is correct, but a program that holds the `*Conn`
-it got instead of asking again talks to a dead connection after the first restart.
-`iterm2-claude-bridge` wrapped its own `Link` for exactly this reason.
-
-**Shape:** a `Terminal`-style interface satisfied by both `*Conn` and `*Persistent`, with
-`Persistent` delegating each typed method to the current connection, and the remaining
-`Subscribe*` helpers returning `DurableSubscription`. Additive. The bridge could then drop `Link`.
+v0.4.0 lets a `Session` listed through a `Persistent` act after a reconnect, but it still names
+the session by the id it was listed with. If iTerm2 restores sessions under new ids after a
+restart (entry 2a asks), every held `Session` answers `SESSION_NOT_FOUND` and the caller must
+list again on `Reconnects()`. Once entry 1 has the answer: either say so on `Session`, or have
+`Persistent` re-resolve ids on reconnect (by tmux id or a tagged variable).
 
 ## 2a. Reconnecting has only been tested against the fake
 
@@ -87,6 +82,9 @@ messages, fields and enum values would turn each protocol bump into a roadmap en
 investigation.
 
 ## Done
+
+- **v0.4.0**: `Persistent` gained `Conn`'s typed surface and the `Client` interface both satisfy;
+  sessions it lists act through it. `iterm2-claude-bridge` can drop its own `Link` (its roadmap).
 
 - **v0.3.0**: the second half of reconnection. `ConnectPersistent` redials with backoff,
   re-makes `DurableSubscription`s on each new connection, and reports a `Reconnect` once they are

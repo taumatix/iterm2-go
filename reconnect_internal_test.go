@@ -186,3 +186,37 @@ func TestANewEnvironmentCookieIsUsedEvenAfterAnOlderOneWasSpent(t *testing.T) {
 
 	assert.Zero(t, runner.count(), "a fresh environment cookie should not have needed AppleScript")
 }
+
+// Persistent reconnects through the same credential path a hand-written loop
+// would: the environment's cookie for the first connection, a fresh one from
+// AppleScript after the drop. Without iterm2-go v0.2.0's spent-cookie memory
+// this reconnect could never succeed.
+func TestPersistentReconnectsWithAFreshCookie(t *testing.T) {
+	t.Setenv("ITERM2_COOKIE", "env-cookie")
+	t.Setenv("ITERM2_KEY", "env-key")
+	srv, runner := startJar(t, "env-cookie")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	p, err := ConnectPersistent(ctx,
+		WithSocketPath(srv.SocketPath),
+		WithCredentialSource(defaultCredentials("test", runner)),
+		WithReconnectBackoff(10*time.Millisecond, 100*time.Millisecond),
+	)
+	require.NoError(t, err)
+	defer p.Close()
+
+	srv.CloseConnections()
+	select {
+	case r := <-p.Reconnects():
+		assert.Equal(t, 1, r.Count)
+	case <-time.After(10 * time.Second):
+		t.Fatalf("never reconnected; handshakes: %+v", srv.Handshakes())
+	}
+
+	assert.Equal(t, 1, runner.count())
+	hs := srv.Handshakes()
+	require.Len(t, hs, 2)
+	assert.Equal(t, "env-cookie", hs[0].Cookie)
+	assert.Equal(t, "applescript-cookie-1", hs[1].Cookie)
+}

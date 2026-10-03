@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.2.0
+go get github.com/taumatix/iterm2-go@v0.3.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -86,26 +86,50 @@ delivers them, so a blocked reader would stall every request on the connection.
 
 ### Staying connected
 
-A `Conn` cannot come back once iTerm2 quits or restarts: the cookie that authorised it was spent
-on the handshake, and iTerm2 forgets every cookie when it restarts. `conn.Done()` closes when the
-connection ends, and `conn.Err()` then says why. The answer is a fresh `Connect`:
+A `Conn` cannot come back once iTerm2 quits or restarts, which it does on every update: the cookie
+that authorised it was spent on the handshake, and iTerm2 forgets every cookie when it restarts.
+`ConnectPersistent` does the reconnecting for you. It dials again when iTerm2 is back, re-makes
+your subscriptions on the new connection, and tells you it did:
 
 ```go
-for ctx.Err() == nil {
-	conn, err := iterm2.Connect(ctx)
-	if err != nil {
-		time.Sleep(time.Second) // iTerm2 not back yet
-		continue
+p, err := iterm2.ConnectPersistent(ctx)
+if err != nil {
+	return err // the first connection failed: is the Python API enabled?
+}
+defer p.Close()
+
+sub, err := p.SubscribeNewSessions(ctx) // its channel stays open across reconnects
+if err != nil {
+	return err
+}
+for {
+	select {
+	case n, ok := <-sub.C():
+		if !ok {
+			return sub.Err() // nil after Unsubscribe or Close
+		}
+		fmt.Println("new session:", n.GetNewSessionNotification().GetSessionId())
+	case r := <-p.Reconnects():
+		// Anything iTerm2 posted while it was away is lost. Resynchronise here:
+		// subscriptions are already back, so nothing after this is missed.
+		conn, err := p.Conn()
+		if err == nil {
+			_, _ = conn.ListSessions(ctx)
+		}
+		log.Printf("reconnected (%d so far): %v", r.Count, r.Cause)
 	}
-	sub, err := conn.SubscribeNewSessions(ctx)
-	// ... resynchronise your state: nothing posted while you were away is replayed
-	<-conn.Done()
-	log.Println("iTerm2 went away:", conn.Err())
 }
 ```
 
-With the default credentials that works in a process iTerm2 launched as well as in one it did
-not. The `ITERM2_COOKIE` iTerm2 handed the process is used for the first connection only, and
+While iTerm2 is away, `p.Conn()` and `p.Do` return `ErrReconnecting`, which also matches
+`ErrClosed`. A per-session subscription whose session did not survive the restart is closed with
+`sub.Err()` saying why.
+
+If you would rather write the loop yourself, `conn.Done()` closes when a `Conn` ends and
+`conn.Err()` says why; a fresh `Connect` then makes a new one.
+
+Either way, with the default credentials this works in a process iTerm2 launched as well as in one
+it did not. The `ITERM2_COOKIE` iTerm2 handed the process is used for the first connection only, and
 later ones ask iTerm2 for a fresh cookie over AppleScript. That second path needs the process to
 be allowed to send Apple Events to iTerm2, so macOS may ask the user once.
 

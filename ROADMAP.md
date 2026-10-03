@@ -31,27 +31,29 @@ Three guesses are waiting on that run, each marked where it is made:
 Until this is done, the README and `UPSTREAM.md` both say the connection layer is unverified, and
 they should keep saying it.
 
-## 2. A connection that heals itself
+## 2. `Persistent` has only the request surface, not the typed one
 
-v0.2.0 made reconnecting possible by hand. `Conn.Done` reports the drop, `ErrClosed` now matches
-it, and a second `Connect` with the default credentials asks for a fresh cookie instead of
-presenting the spent `ITERM2_COOKIE`. The README carries the loop. Every program that wants to
-survive an iTerm2 restart still writes that loop itself, and re-subscribes to everything itself.
+v0.3.0's `Persistent` reconnects and keeps subscriptions alive, but its typed surface is two
+subscription helpers, `Do` and `Conn()`. Everything else (`ListSessions`, `CreateTab`,
+`SendText`, variables, the remaining `Subscribe*` helpers) goes through `p.Conn()` on every call,
+which returns `ErrReconnecting` while away. That is correct, but a program that holds the `*Conn`
+it got instead of asking again talks to a dead connection after the first restart.
+`iterm2-claude-bridge` wrapped its own `Link` for exactly this reason.
 
-A wrapper that does it needs a decision about subscriptions. Re-subscribing silently would hide a
-gap in the notification stream, and not re-subscribing makes the wrapper useless. Probably:
-re-subscribe, and report the gap as a value the caller cannot miss, such as a separate channel of
-reconnect events, because a notification channel has no slot for "you missed some". Test it
-against the fake with `SingleUseCookies`, dropping the connection mid-stream.
+**Shape:** a `Terminal`-style interface satisfied by both `*Conn` and `*Persistent`, with
+`Persistent` delegating each typed method to the current connection, and the remaining
+`Subscribe*` helpers returning `DurableSubscription`. Additive. The bridge could then drop `Link`.
 
 ## 2a. Reconnecting has only been tested against the fake
 
 The cookie behaviour v0.2.0 relies on is read from iTerm2's source at `5ed491d`
 (`iTermWebSocketCookieJar`, `iTermAPIScriptLauncher`), and the fake reproduces it. No real iTerm2
-has been restarted under a connected `Conn`. Two things need a real one. Does the socket's read
-error surface promptly when iTerm2 quits, or only at the next write? And does AppleScript cookie
-minting succeed in a process iTerm2 launched, which may not hold Apple Events permission of its
-own? Fold this into entry 1's live run.
+has been restarted under a connected `Conn` or a `Persistent`. Three things need a real one. Does
+the socket's read error surface promptly when iTerm2 quits, or only at the next write? Does
+AppleScript cookie minting succeed in a process iTerm2 launched, which may not hold Apple Events
+permission of its own? And does a per-session subscription survive a restart, which depends on
+whether iTerm2 restores sessions under their old ids? If it does not, a `DurableSubscription` for
+one session closes with `Err()` after every restart. Fold this into entry 1's live run.
 
 ## 3. Expose the split tree
 
@@ -86,6 +88,9 @@ investigation.
 
 ## Done
 
+- **v0.3.0**: the second half of reconnection. `ConnectPersistent` redials with backoff,
+  re-makes `DurableSubscription`s on each new connection, and reports a `Reconnect` once they are
+  back.
 - **v0.2.0**: the first half of reconnection. `Conn.Done`/`Conn.Err`; `DefaultCredentials` spends
   the environment's cookie once and then asks over AppleScript; a refused environment cookie gets
   one fresh retry; `ErrClosed` now matches a drop from iTerm2's side, as it was documented to.

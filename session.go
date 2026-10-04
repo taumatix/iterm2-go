@@ -117,13 +117,54 @@ type Tab struct {
 	Group *TabGroup
 
 	// Sessions are the tab's panes, flattened from api.proto's split tree in
-	// left-to-right, top-to-bottom order. The tree's shape is not exposed yet;
-	// see ROADMAP.md.
+	// left-to-right, top-to-bottom order. [Tab.SplitTree] keeps the tree's
+	// shape.
 	Sessions []*Session
+
+	splitTree *SplitNode
 
 	// MinimizedSessions are panes the user has collapsed. They are not in
 	// Sessions.
 	MinimizedSessions []*Session
+}
+
+// SplitTree returns how the tab's panes are arranged, or nil when iTerm2 sent
+// no layout for it. Its panes are the same *Session values as in Sessions.
+func (t *Tab) SplitTree() *SplitNode { return t.splitTree }
+
+// SplitNode is one node of a tab's split tree, as api.proto's SplitTreeNode
+// lays it out: either a pane, or a divided area holding further nodes.
+//
+// It carries no geometry of its own. Each pane's Frame and GridSize are on its
+// Session, and anything more (proportions, divider positions) is not something
+// iTerm2 reports.
+type SplitNode struct {
+	// Session is set when this node is a pane, and nil when it is a split.
+	Session *Session
+
+	// Vertical is the direction of this split's dividers: true when they are
+	// vertical, so Children sit side by side, left to right; false when they
+	// are horizontal, so Children are stacked, top to bottom.
+	Vertical bool
+
+	// Children are the areas this split divides, in order. Empty for a pane.
+	Children []*SplitNode
+}
+
+// Panes returns the panes under n, depth first in link order, which is the
+// order [Tab.Sessions] has.
+func (n *SplitNode) Panes() []*Session {
+	if n == nil {
+		return nil
+	}
+	if n.Session != nil {
+		return []*Session{n.Session}
+	}
+	var out []*Session
+	for _, c := range n.Children {
+		out = append(out, c.Panes()...)
+	}
+	return out
 }
 
 // TabGroup is the group a tab belongs to.
@@ -263,7 +304,8 @@ func newHierarchy(c api, resp *apipb.ListSessionsResponse) *Hierarchy {
 					Collapsed: pt.GetTabGroupCollapsed(),
 				}
 			}
-			t.Sessions = flattenSplitTree(c, pt.GetRoot(), nil)
+			t.splitTree = newSplitNode(c, pt.GetRoot())
+			t.Sessions = t.splitTree.Panes()
 			for _, ps := range pt.GetMinimizedSessions() {
 				t.MinimizedSessions = append(t.MinimizedSessions, newSession(c, ps, false))
 			}
@@ -277,25 +319,28 @@ func newHierarchy(c api, resp *apipb.ListSessionsResponse) *Hierarchy {
 	return h
 }
 
-// flattenSplitTree walks api.proto's SplitTreeNode depth first, in link order,
+// newSplitNode converts api.proto's SplitTreeNode, depth first in link order,
 // which is left-to-right for a vertical divider and top-to-bottom otherwise.
 //
 // A link with neither child set is skipped rather than treated as an error: it
 // would mean a future iTerm2 added a third kind of child, and dropping one pane
 // beats failing the whole call.
-func flattenSplitTree(c api, node *apipb.SplitTreeNode, out []*Session) []*Session {
+func newSplitNode(c api, node *apipb.SplitTreeNode) *SplitNode {
 	if node == nil {
-		return out
+		return nil
 	}
+	n := &SplitNode{Vertical: node.GetVertical()}
 	for _, link := range node.GetLinks() {
 		switch child := link.GetChild().(type) {
 		case *apipb.SplitTreeNode_SplitTreeLink_Session:
-			out = append(out, newSession(c, child.Session, false))
+			n.Children = append(n.Children, &SplitNode{Session: newSession(c, child.Session, false)})
 		case *apipb.SplitTreeNode_SplitTreeLink_Node:
-			out = flattenSplitTree(c, child.Node, out)
+			if sub := newSplitNode(c, child.Node); sub != nil {
+				n.Children = append(n.Children, sub)
+			}
 		}
 	}
-	return out
+	return n
 }
 
 func newSession(c api, s *apipb.SessionSummary, buried bool) *Session {

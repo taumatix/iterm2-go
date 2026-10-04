@@ -50,14 +50,13 @@ permission of its own? And does a per-session subscription survive a restart, wh
 whether iTerm2 restores sessions under their old ids? If it does not, a `DurableSubscription` for
 one session closes with `Err()` after every restart. Fold this into entry 1's live run.
 
-## 3. Expose the split tree
+## 3. Split a pane relative to the tree
 
-`Tab.Sessions` is flattened from `api.proto`'s `SplitTreeNode` in tree order, which is what most
-callers want, and the tree's shape is currently dropped. Anything that needs to know *how* panes
-are arranged — which pane is left of which, how a tab would look redrawn — cannot get it.
-
-Additive: keep `Sessions`, add `Tab.SplitTree()`. The geometry types are the design question, and
-the reason this is not in v0.1.0: getting them wrong is expensive to undo.
+v0.5.0 exposes the split tree read-only. `SplitPane` acts on one session (with `Before` and a
+direction), so "split the right-hand column" means the caller picking a pane in it. Whether a
+helper on `SplitNode` is worth having should wait for a real use. Also worth knowing from a real
+iTerm2 (entry 1): whether a single-pane tab's root really is a split node holding one pane, which
+the fake assumes.
 
 ## 4. Typed wrappers for the requests `Conn.Do` currently carries
 
@@ -82,6 +81,9 @@ messages, fields and enum values would turn each protocol bump into a roadmap en
 investigation.
 
 ## Done
+
+- **v0.5.0**: `Tab.SplitTree()` and `SplitNode`, mirroring api.proto's tree, with no invented
+  geometry.
 
 - **v0.4.0**: `Persistent` gained `Conn`'s typed surface and the `Client` interface both satisfy;
   sessions it lists act through it. `iterm2-claude-bridge` can drop its own `Link` (its roadmap).

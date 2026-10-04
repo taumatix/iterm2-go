@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.4.0
+go get github.com/taumatix/iterm2-go@v0.5.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -65,6 +65,30 @@ func main() {
 The first connection raises a permission prompt in iTerm2, because the library asks the running
 application for a cookie over AppleScript. A program iTerm2 launched itself is handed
 `ITERM2_COOKIE` and `ITERM2_KEY` in its environment and is not prompted.
+
+### How a tab's panes are arranged
+
+`Tab.Sessions` lists a tab's panes in order: left to right, top to bottom. `Tab.SplitTree()` keeps
+the arrangement, as iTerm2 reports it. Each node is either a pane (`Session` set) or a split whose
+`Children` sit side by side (`Vertical`) or stacked. Its panes are the same `*Session` values as in
+`Sessions`, and each carries its own `Frame`.
+
+```go
+func describe(n *iterm2.SplitNode, depth int) {
+	pad := strings.Repeat("  ", depth)
+	switch {
+	case n.Session != nil:
+		fmt.Printf("%spane %s\n", pad, n.Session.ID)
+	case n.Vertical:
+		fmt.Printf("%sside by side:\n", pad)
+	default:
+		fmt.Printf("%sstacked:\n", pad)
+	}
+	for _, c := range n.Children {
+		describe(c, depth+1)
+	}
+}
+```
 
 ### Watching for changes
 

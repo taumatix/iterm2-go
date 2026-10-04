@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-04
+
+### Added
+
+- **`Tab.SplitTree()`: how a tab's panes are arranged.** `Tab.Sessions` flattens iTerm2's split
+  tree, so which pane sits beside or above which was lost. A `SplitNode` mirrors api.proto's
+  `SplitTreeNode`: a pane (`Session`), or a split whose `Children` are side by side (`Vertical`)
+  or stacked. It adds no geometry of its own, since each pane's `Frame` is already on its
+  `Session`. The tree's panes are the same `*Session` values as `Sessions`, and
+  `SplitNode.Panes()` gives them back in the same order.
+
 ## [0.4.0] - 2026-10-04
 
 ### Added

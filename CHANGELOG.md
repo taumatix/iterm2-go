@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-04
+
+### Added
+
+- **`RegisterTool`: a web-view panel in iTerm2's toolbelt, typed.** It was reachable only through
+  `Conn.Do` with a hand-built `RegisterToolRequest`. A `Tool` with no name, identifier or URL is
+  refused before anything is sent; iTerm2 would answer `REQUEST_MALFORMED` without saying which.
+- **`Persistent.RegisterTool` keeps the tool across iTerm2 restarts.** iTerm2 forgets a tool
+  when it quits, so a `Persistent` registers each of its tools again on every new connection.
+  This happens before the `Reconnect` is announced, and without revealing the tool, so a restart
+  does not pop the toolbelt open. A tool refused then is reported in the new `Reconnect.ToolErr`.
+- `RegisterTool` is not added to the `Client` interface, since that would break code that
+  implements it.
+
 ## [0.5.0] - 2026-10-04
 
 ### Added

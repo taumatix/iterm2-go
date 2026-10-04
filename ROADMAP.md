@@ -61,8 +61,13 @@ the fake assumes.
 ## 4. Typed wrappers for the requests `Conn.Do` currently carries
 
 Reachable today but unergonomic: profiles (`ListProfilesRequest`, `GetProfileProperty`,
-`SetProfileProperty`), screen contents (`GetBufferRequest`), prompts, transactions,
-`RegisterToolRequest`, saved arrangements, the main menu, and server-originated RPC.
+`SetProfileProperty`), screen contents (`GetBufferRequest`), prompts, transactions, saved
+arrangements, the main menu, and server-originated RPC. (`RegisterToolRequest` became
+`RegisterTool` in v0.6.0.)
+
+New methods go on `Conn` and `Persistent` but not on the `Client` interface: adding a method to an
+exported interface breaks anyone who implements it. Whether `Client` should grow at a major
+version, or be complemented by smaller interfaces, is open.
 
 Session notes joined that list with upstream `5ed491d` (2026-09-26): a `"session_note"` session
 property, `{ "text": string, "visible": boolean, "collapsed": boolean }`, read through
@@ -70,8 +75,9 @@ property, `{ "text": string, "visible": boolean, "collapsed": boolean }`, read t
 Nothing in the proto changed shape, so it is reachable via `Conn.Do` today; a typed
 `Session.Note()` / `Session.SetNote()` pair is the wrapper.
 
-Worth doing one at a time, each with its own tests, rather than as a sweep. `RegisterToolRequest`
-is the most valuable: it is what lets a Go program put its own panel in iTerm2's toolbelt.
+Worth doing one at a time, each with its own tests, rather than as a sweep. Server-originated RPC
+is the natural next one: it is how a toolbelt panel's page, or a status-bar component, calls back
+into the Go program.
 
 ## 5. Track protocol additions rather than noticing them
 
@@ -81,6 +87,8 @@ messages, fields and enum values would turn each protocol bump into a roadmap en
 investigation.
 
 ## Done
+
+- **v0.6.0**: `RegisterTool`, typed, and kept across iTerm2 restarts by `Persistent`.
 
 - **v0.5.0**: `Tab.SplitTree()` and `SplitNode`, mirroring api.proto's tree, with no invented
   geometry.

@@ -33,6 +33,9 @@ type Reconnect struct {
 	Cause error
 	// At is when the new connection was ready.
 	At time.Time
+	// ToolErr joins the errors of the tools that could not be registered again
+	// on the new connection (see [Persistent.RegisterTool]), or is nil.
+	ToolErr error
 }
 
 // Persistent is a connection to iTerm2 that survives iTerm2 restarting, which
@@ -62,6 +65,8 @@ type Persistent struct {
 	closed bool
 	count  int
 	subs   map[*DurableSubscription]struct{}
+	// tools are registered again on each new connection, by Identifier.
+	tools map[string]Tool
 
 	reconnects chan Reconnect
 }
@@ -210,9 +215,10 @@ func (p *Persistent) run() {
 		for _, d := range subs {
 			d.resubscribe(p.ctx, next)
 		}
+		toolErr := p.reregisterTools(p.ctx, next)
 		p.resub.Unlock()
 
-		p.announce(Reconnect{Count: count, Cause: cause, At: time.Now()})
+		p.announce(Reconnect{Count: count, Cause: cause, At: time.Now(), ToolErr: toolErr})
 	}
 }
 

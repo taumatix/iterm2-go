@@ -79,6 +79,11 @@ type Server struct {
 	handshakes []Handshake
 	conns      []*websocket.Conn
 	connected  chan struct{}
+	// accepting counts upgrades answered but not yet in conns. The client's
+	// Connect returns as soon as it reads the 101, before the server has
+	// recorded the connection, so CloseConnections waits for these: otherwise
+	// a test that drops the connection right after connecting drops nothing.
+	accepting int
 
 	closeOnce sync.Once
 	done      chan struct{}
@@ -270,6 +275,14 @@ func (s *Server) ConnectionCount() int {
 // CloseConnections drops every client connection without a close frame,
 // simulating iTerm2 quitting.
 func (s *Server) CloseConnections() {
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+		s.mu.Lock()
+		pending := s.accepting
+		s.mu.Unlock()
+		if pending == 0 {
+			break
+		}
+	}
 	s.mu.Lock()
 	conns := s.conns
 	s.conns = nil
@@ -316,6 +329,18 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.mu.Lock()
+	s.accepting++
+	s.mu.Unlock()
+	accepted := false
+	defer func() {
+		if !accepted {
+			s.mu.Lock()
+			s.accepting--
+			s.mu.Unlock()
+		}
+	}()
+
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		Subprotocols: []string{Subprotocol},
 	})
@@ -330,6 +355,8 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.conns = append(s.conns, c)
+	s.accepting--
+	accepted = true
 	s.mu.Unlock()
 	select {
 	case s.connected <- struct{}{}:

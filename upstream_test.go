@@ -101,10 +101,20 @@ func TestUpstreamProtoHasNotDrifted(t *testing.T) {
 	req, err := http.NewRequestWithContext(testContext(t), http.MethodGet, url, nil)
 	require.NoError(t, err)
 	req.Header.Set("Accept", "application/vnd.github+json")
+	// Anonymous requests share a rate limit per IP, which a CI runner's IP has
+	// often spent. The workflow passes its own token.
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		// A rate limit says nothing about drift, and this check exists to report
+		// drift, not GitHub's quota.
+		t.Skipf("GitHub answered %s (rate limited?), so drift was not checked", resp.Status)
+	}
 	require.Equal(t, http.StatusOK, resp.StatusCode, "GitHub answered %s", resp.Status)
 
 	var commits []struct {

@@ -76,8 +76,11 @@ Nothing in the proto changed shape, so it is reachable via `Conn.Do` today; a ty
 `Session.Note()` / `Session.SetNote()` pair is the wrapper.
 
 Worth doing one at a time, each with its own tests, rather than as a sweep. Server-originated RPC
-is the natural next one: it is how a toolbelt panel's page, or a status-bar component, calls back
-into the Go program.
+is typed for the generic role since v0.7.0. The other three roles each need their attributes:
+`STATUS_BAR_COMPONENT` (descriptions, knobs, exemplar, update cadence) is the most visible,
+`SESSION_TITLE` (display name, unique identifier) the simplest, and `CONTEXT_MENU` (display name).
+Whether iTerm2 really matches a call on name plus argument names, and calls with every default
+filled, is for entry 1's real run.
 
 ## 5. Track protocol additions rather than noticing them
 
@@ -87,6 +90,9 @@ messages, fields and enum values would turn each protocol bump into a roadmap en
 investigation.
 
 ## Done
+
+- **v0.7.0**: `RegisterRPC` (generic role), durable on `Persistent`. Fixed unsubscribe requests
+  that dropped their arguments.
 
 - **v0.6.0**: `RegisterTool`, typed, and kept across iTerm2 restarts by `Persistent`.
 

@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-05
+
+### Added
+
+- **`RegisterRPC`: functions iTerm2 can call in your program.** A key binding, a trigger or a
+  toolbelt page can invoke them by name. An `RPC` names the function and its arguments, and can
+  fill arguments from iTerm2 variables (`Defaults`) and set iTerm2's `Timeout`. Its `Handler`
+  receives the arguments as JSON; the result goes back as JSON, and an error as the
+  `{"reason": …}` exception api.proto asks for. Each function answers only calls naming it,
+  since every registration on a connection hears every call. On a `Persistent` the registration
+  is a durable subscription, so it is re-registered on every new connection. This is the generic
+  role only; status-bar components, session titles and context-menu items come later.
+
+### Fixed
+
+- **Unsubscribing named nothing.** `Subscription.Unsubscribe` rebuilt the request from its type
+  and session alone, so stopping a `SubscribeVariableChanges` monitor did not say which variable,
+  and stopping an RPC would not have said which function. It now resends the request it
+  subscribed with, `subscribe` unset, as iTerm2's Python library does.
+
 ## [0.6.0] - 2026-10-04
 
 ### Added

@@ -26,6 +26,10 @@ type Subscription struct {
 	conn    *Conn
 	kind    apipb.NotificationType
 	session string
+	// req is the request as subscribed, arguments included. Unsubscribing
+	// sends it again with subscribe unset, as iTerm2's Python library does:
+	// iTerm2 finds the variable monitor or RPC registration to stop by it.
+	req *apipb.NotificationRequest
 
 	ch      chan *apipb.Notification
 	dropped atomic.Uint64
@@ -87,13 +91,8 @@ func (s *Subscription) Unsubscribe(ctx context.Context) error {
 // request rebuilds the NotificationRequest for this subscription. Unsubscribing
 // has to name the same type and session as subscribing did.
 func (s *Subscription) request(subscribe bool) *apipb.NotificationRequest {
-	req := &apipb.NotificationRequest{
-		Subscribe:        proto.Bool(subscribe),
-		NotificationType: s.kind.Enum(),
-	}
-	if s.session != "" {
-		req.Session = proto.String(s.session)
-	}
+	req := proto.Clone(s.req).(*apipb.NotificationRequest)
+	req.Subscribe = proto.Bool(subscribe)
 	return req
 }
 
@@ -229,6 +228,7 @@ func (c *Conn) Subscribe(ctx context.Context, req *apipb.NotificationRequest) (*
 		conn:    c,
 		kind:    kind,
 		session: req.GetSession(),
+		req:     proto.Clone(req).(*apipb.NotificationRequest),
 		ch:      make(chan *apipb.Notification, c.subscribeBuf),
 	}
 	if !s.matchesAnything() {

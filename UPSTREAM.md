@@ -17,7 +17,7 @@ without CI noticing.
   sha: 5ed491d0cc7bba5a307f8ec70b6707f8c5e57956
   sha256: e6c7fb443038d5e52b1721f9c151a4c53ba242986f8a391ecd2661349094f958
   upstream_date: 2026-09-26
-  checked: 2026-09-27
+  checked: 2026-10-05
   note: >-
     the protocol definition. Copied verbatim and verified byte-identical against
     upstream at this commit on 2026-09-27 (upstream commit "Add Python API support
@@ -32,7 +32,7 @@ without CI noticing.
 - name: iterm2-app
   kind: macos-app
   minimum: "3.5.0"
-  checked: 2026-09-27
+  checked: 2026-10-05
   hold: >-
     not verified against a running iTerm2 by any automated run yet. The socket path,
     the handshake headers and the AppleScript cookie exchange were written from

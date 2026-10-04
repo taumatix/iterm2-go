@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.6.0
+go get github.com/taumatix/iterm2-go@v0.7.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -106,6 +106,30 @@ err := conn.RegisterTool(ctx, iterm2.Tool{
 
 iTerm2 forgets the tool when it quits. On a `Persistent`, `RegisterTool` also registers it again
 on every new connection, without revealing it, and reports a refusal in `Reconnect.ToolErr`.
+
+### Functions iTerm2 can call
+
+`RegisterRPC` registers a function iTerm2 can invoke by name: from a key binding, a trigger, or
+a toolbelt page. Its arguments arrive as JSON, and what it returns goes back as JSON. An error
+goes back as an exception iTerm2 can show.
+
+```go
+reg, err := conn.RegisterRPC(ctx, iterm2.RPC{
+	Name:      "greet",
+	Arguments: []string{"who", "session_id"},
+	Defaults:  map[string]string{"session_id": "session.id"}, // filled from an iTerm2 variable
+	Handler: func(ctx context.Context, args map[string]json.RawMessage) (any, error) {
+		var who string
+		if err := json.Unmarshal(args["who"], &who); err != nil {
+			return nil, err
+		}
+		return "hello " + who, nil
+	},
+})
+```
+
+On a `Persistent` the function is registered again on every new connection. This covers iTerm2's
+generic role; status-bar components, session titles and context-menu items are not typed yet.
 
 ### Watching for changes
 

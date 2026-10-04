@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.5.0
+go get github.com/taumatix/iterm2-go@v0.6.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -89,6 +89,23 @@ func describe(n *iterm2.SplitNode, depth int) {
 	}
 }
 ```
+
+### A panel in the toolbelt
+
+`RegisterTool` puts a web page in iTerm2's toolbelt: serve it from your program (on loopback) and
+register its URL.
+
+```go
+err := conn.RegisterTool(ctx, iterm2.Tool{
+	Name:       "My panel",
+	Identifier: "com.example.mypanel",
+	URL:        "http://127.0.0.1:8080/",
+	Reveal:     true, // show it even if it was registered, and hidden, before
+})
+```
+
+iTerm2 forgets the tool when it quits. On a `Persistent`, `RegisterTool` also registers it again
+on every new connection, without revealing it, and reports a refusal in `Reconnect.ToolErr`.
 
 ### Watching for changes
 

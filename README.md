@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.7.0
+go get github.com/taumatix/iterm2-go@v0.8.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -128,8 +128,32 @@ reg, err := conn.RegisterRPC(ctx, iterm2.RPC{
 })
 ```
 
-On a `Persistent` the function is registered again on every new connection. This covers iTerm2's
-generic role; status-bar components, session titles and context-menu items are not typed yet.
+On a `Persistent` the function is registered again on every new connection.
+
+`RegisterTitleProvider` registers one as a session-title provider: it appears among the title
+choices in a profile's settings under its `DisplayName`, and a session using it shows the string
+its handler returns. Map an argument to a variable in `Defaults`, such as `user.gitBranch`; iTerm2
+describes title providers as called again when such a variable changes, which this library's
+tests (against a stand-in, not iTerm2) cannot show.
+
+```go
+reg, err := conn.RegisterTitleProvider(ctx, iterm2.TitleProvider{
+	RPC: iterm2.RPC{
+		Name:      "branch_title",
+		Arguments: []string{"branch"},
+		Defaults:  map[string]string{"branch": "user.gitBranch"},
+		Handler: func(ctx context.Context, args map[string]json.RawMessage) (any, error) {
+			var branch string
+			_ = json.Unmarshal(args["branch"], &branch)
+			return "⎇ " + branch, nil
+		},
+	},
+	DisplayName: "Git branch",
+	Identifier:  "com.example.branch-title",
+})
+```
+
+Status-bar components and context-menu items are not typed yet.
 
 ### Watching for changes
 

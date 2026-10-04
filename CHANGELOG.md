@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-05
+
+### Added
+
+- **`RegisterTitleProvider`: a session title computed by your program.** A `TitleProvider` is an
+  `RPC` registered in iTerm2's session-title role. It appears among the title choices in a
+  profile's settings under its `DisplayName`, and a session using it shows the string its handler
+  returns; `Defaults` maps its arguments to session variables. A handler that returns
+  anything but a string gets an error back rather than a title of JSON. Kept across reconnects on
+  a `Persistent`.
+
 ## [0.7.0] - 2026-10-05
 
 ### Added

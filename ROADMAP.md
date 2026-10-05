@@ -76,10 +76,11 @@ Nothing in the proto changed shape, so it is reachable via `Conn.Do` today; a ty
 `Session.Note()` / `Session.SetNote()` pair is the wrapper.
 
 Worth doing one at a time, each with its own tests, rather than as a sweep. Server-originated RPC
-is typed for the generic role (v0.7.0) and the session-title role (`RegisterTitleProvider`,
-v0.8.0). Two roles remain: `CONTEXT_MENU`, whose attributes are the same pair as a title
-provider's (display name, unique identifier), so it is next and small; and `STATUS_BAR_COMPONENT`
-(descriptions, knobs, exemplar, update cadence, icons, format), the most visible and the largest.
+is typed for the generic role (v0.7.0), session titles (`RegisterTitleProvider`, v0.8.0) and
+context-menu items (`RegisterContextMenuItem`, v0.9.0). `STATUS_BAR_COMPONENT` remains, the most
+visible and the largest: descriptions, knobs (a settings UI iTerm2 draws from their types), an
+exemplar, an update cadence, icons and a plain-text or HTML format. Split it before building:
+the component with descriptions and cadence first, knobs second, icons and HTML last.
 Whether iTerm2 really matches a call on name plus argument names, and calls with every default
 filled, is for entry 1's real run.
 

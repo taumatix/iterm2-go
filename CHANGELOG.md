@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-05
+
+### Added
+
+- **`RegisterContextMenuItem`: an item in a session's context menu that calls your program.** A
+  `ContextMenuItem` is an `RPC` registered in iTerm2's context-menu role, labelled `DisplayName`.
+  Map its arguments to variables such as `session.path` to act on the session the menu was
+  opened on. On a `Persistent` it is registered again on every new connection.
+
 ## [0.8.0] - 2026-10-05
 
 ### Added

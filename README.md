@@ -15,7 +15,7 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 ## Install
 
 ```sh
-go get github.com/taumatix/iterm2-go@v0.8.0
+go get github.com/taumatix/iterm2-go@v0.9.0
 ```
 
 Requires Go 1.27 or newer, macOS, and iTerm2 with the API enabled in
@@ -153,7 +153,10 @@ reg, err := conn.RegisterTitleProvider(ctx, iterm2.TitleProvider{
 })
 ```
 
-Status-bar components and context-menu items are not typed yet.
+`RegisterContextMenuItem` adds one to a session's context menu, labelled `DisplayName`; map
+`Defaults` to variables such as `session.path` to act on the session the menu was opened on.
+
+Status-bar components are not typed yet.
 
 ### Watching for changes
 

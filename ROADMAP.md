@@ -91,6 +91,15 @@ changed, so the answer to "does this matter" is still a manual diff. A check tha
 messages, fields and enum values would turn each protocol bump into a roadmap entry instead of an
 investigation.
 
+## 6. Sync `api.proto` to protocol 1.23 (floating panes, context-menu submenus)
+
+Upstream `api.proto` moved from 5ed491d to fe8cbff7 (2026-10-12), additive only: `FloatingPane` and
+`Tab.floating_panes` / `floating_panes_hidden` (protocol 1.21, commit c77dbd25), and
+`ContextMenuItem.submenu` / `visible_when` (1.23). Copy the file, regenerate `apipb`, update the
+`sha`/`sha256` pins in `UPSTREAM.md`, then expose `submenu` and `visible_when` on
+`RegisterContextMenuItem` through additive options, and decide whether floating panes belong in the
+`Tab` / session-tree wrappers (a session in a float is not in `root`).
+
 ## Done
 
 - **v0.7.0**: `RegisterRPC` (generic role), durable on `Persistent`. Fixed unsubscribe requests

@@ -1,0 +1,26 @@
+iterm2-go
+Copyright 2026 Taumatix
+
+License: GPL-2.0-or-later (see LICENSE). This is the most permissive license available to this
+library, not the project's usual Apache-2.0, for the reason below.
+
+Why not Apache-2.0
+  proto/api.proto is copied verbatim from iTerm2 (https://github.com/gnachman/iTerm2), which is
+  distributed under the GPL. A copy of that file cannot be relicensed by us, and Apache-2.0 is not
+  compatible with GPL-2.0-only. Replacing the file with a clean-room protocol definition would be
+  the only route to a permissive license; that has not been done.
+
+Why "or later" (checked 2026-11-01)
+  - iTerm2's own `iterm2` Python package, the direct equivalent of this library, declares
+    "GPL v2 or later" (https://pypi.org/project/iterm2/).
+  - iTerm2's LICENSE file is the GPL v2 text and GitHub reports it as GPL-2.0; its README says
+    GPLv3. "GPL-2.0-or-later" is consistent with all three: a combined work can be distributed
+    under GPLv3, which also keeps Apache-2.0 dependencies legal.
+  - Unverified: iTerm2 carries no per-file license header on api.proto.
+
+Dependencies (all compatible with GPL-2.0-or-later)
+  github.com/coder/websocket   ISC
+  github.com/stretchr/testify  MIT
+  go.yaml.in/yaml/v3           MIT / Apache-2.0 (used under MIT)
+  google.golang.org/protobuf   BSD-3-Clause
+  Checked against api.deps.dev on 2026-11-01 for the versions in go.mod.

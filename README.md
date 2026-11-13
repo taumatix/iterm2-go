@@ -11,6 +11,10 @@ WebSocket. No Python, no bundled runtime, no script installed into iTerm2's scri
 > pinned and verified byte-identical to iTerm2's own. The *connection* to a real iTerm2 is
 > **not yet verified by any automated run** — every test drives a fake that implements the
 > protocol as read from iTerm2's source. See [what is and is not verified](UPSTREAM.md#what-is-and-is-not-verified).
+>
+> **Upstream note (2026-11-13):** iTerm2's `api.proto` has since moved to protocol 1.23 — additive
+> only (floating panes, context-menu `submenu` / `visible_when`). It is a small sync, queued as
+> [ROADMAP entry 6](ROADMAP.md); until then those fields are absent from this library.
 
 ## Install
 
